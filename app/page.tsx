@@ -240,8 +240,101 @@ export default function Home() {
           </div>
         </div>
 
+        <div className="architecture-suite">
+          <div className="diagram-card application-architecture">
+            <div className="diagram-title"><span>APPLICATION ARCHITECTURE</span><b>拨测平台应用架构</b></div>
+            <div className="architecture-lane">
+              <div className="lane-label"><span>01</span><b>接入层</b></div>
+              <div className="lane-content three-nodes">
+                <Node title="Raptor Portal" meta="环境接入 · 任务配置 · 结果查询" tone="accent" />
+                <Node title="OpenAPI" meta="发布后触发 · 手动拨测 · 系统集成" />
+                <Node title="SSO / RBAC" meta="应用 Owner · SRE · 审计权限" />
+              </div>
+            </div>
+            <div className="architecture-connector"><span>HTTPS / REST · 同步配置请求</span><i>↓</i></div>
+            <div className="architecture-lane control-lane">
+              <div className="lane-label"><span>02</span><b>控制面</b></div>
+              <div className="lane-content four-nodes">
+                <Node title="Config Service" meta="应用 · 环境 · Endpoint · 版本" />
+                <Node title="Connectivity Service" meta="网络矩阵 · 准入 · 复检证据" tone="green" />
+                <Node title="Scheduler" meta="ElasticJob 分片 · Jitter · executionId" tone="green" />
+                <Node title="Rule Engine" meta="连续失败 · 多点仲裁 · 状态机" tone="orange" />
+              </div>
+            </div>
+            <div className="architecture-connector async"><span>ProbeCommand / ProbeResult · Kafka 异步削峰与背压</span><i>↓</i></div>
+            <div className="architecture-lane execution-lane">
+              <div className="lane-label"><span>03</span><b>执行面</b></div>
+              <div className="lane-content three-nodes">
+                <Node title="非生产 Worker Pool" meta="DEV / TEST / STG 探测点 · K8S HPA" tone="purple" />
+                <Node title="生产 Worker Pool" meta="PROD 专用探测点 · 独立配额与密钥" tone="purple" />
+                <Node title="Result Aggregator" meta="幂等写入 · 延迟分解 · 故障分类" tone="orange" />
+              </div>
+            </div>
+            <div className="architecture-connector storage"><span>配置、状态与可观测数据</span><i>↓</i></div>
+            <div className="architecture-lane foundation-lane">
+              <div className="lane-label"><span>04</span><b>基础设施</b></div>
+              <div className="lane-content four-nodes">
+                <Node title="MySQL" meta="配置 · 版本 · 执行摘要 · Incident" />
+                <Node title="Redis" meta="调度租约 · 限流 · 热状态" />
+                <Node title="Kafka" meta="Command · Result · Notification Topic" />
+                <Node title="通知与观测" meta="Slack · Metrics · Log · Audit" />
+              </div>
+            </div>
+            <div className="architecture-notes">
+              <p><b>同步路径：</b>用户配置只进入控制面，校验并发布不可变版本。</p>
+              <p><b>异步路径：</b>Scheduler 只生成命令，Worker 无状态消费，Aggregator 幂等落库。</p>
+              <p><b>隔离原则：</b>生产与非生产 Worker、配额、Secret 和网络策略完全分离。</p>
+            </div>
+          </div>
+
+          <div className="diagram-card network-architecture">
+            <div className="diagram-title"><span>NETWORK ARCHITECTURE</span><b>多环境网络架构与流量边界</b></div>
+            <div className="network-entry">
+              <Node title="研发 / SRE" meta="企业办公网 · SSO" tone="accent" />
+              <div className="network-arrow"><span>HTTPS 443</span><i>→</i></div>
+              <Node title="API Gateway / Ingress" meta="认证 · WAF · 限流 · 审计" />
+              <div className="network-arrow"><span>HTTPS 443</span><i>→</i></div>
+              <Node title="Raptor 控制面" meta="管理区 K8S · 私网 Service" tone="green" />
+            </div>
+            <div className="network-control-channel">
+              <span>控制通道</span>
+              <b>控制面通过 Kafka 下发命令；不直接跨区访问业务 Endpoint</b>
+            </div>
+            <div className="network-zones">
+              <section className="network-zone management-zone">
+                <div className="zone-head"><span>MANAGEMENT ZONE</span><b>平台管理区</b></div>
+                <Node title="Kafka Cluster" meta="TLS + SASL · Topic ACL" tone="orange" />
+                <Node title="MySQL / Redis" meta="仅控制面与聚合器可访问" />
+                <Node title="Secrets / KMS" meta="Worker 身份换取短期凭据" />
+                <p>NetworkPolicy 默认拒绝；仅开放明确的服务到服务规则。</p>
+              </section>
+              <div className="zone-link nonprod-link"><span>命令 ↓　结果 ↑</span><i>mTLS / ACL</i></div>
+              <section className="network-zone nonprod-zone">
+                <div className="zone-head"><span>NON-PROD ZONE</span><b>非生产网络域</b></div>
+                <Node title="Non-prod Probe Pool" meta="独立 Namespace · HPA · Egress Policy" tone="purple" />
+                <div className="target-row">
+                  <span>DEV Endpoint</span><span>TEST Endpoint</span><span>STG Endpoint</span>
+                </div>
+                <p>探测流量仅从非生产 Probe Pod 发起；按环境目标 CIDR、域名和端口放通。</p>
+              </section>
+              <div className="zone-link prod-link"><span>命令 ↓　结果 ↑</span><i>mTLS / ACL</i></div>
+              <section className="network-zone prod-zone">
+                <div className="zone-head"><span>PRODUCTION ZONE</span><b>生产网络域</b></div>
+                <Node title="Production Probe Pool" meta="专用节点池 · 独立 ServiceAccount" tone="purple" />
+                <div className="target-row single"><span>PROD Endpoint / Ingress / Service</span></div>
+                <p>生产 Probe 不访问 DEV/TEST；生产凭据、配额、告警策略与非生产隔离。</p>
+              </section>
+            </div>
+            <div className="probe-traffic-legend">
+              <div><span className="control-dot" /><b>控制流</b><p>Portal → 控制面 → Kafka → Worker；只传任务与结果。</p></div>
+              <div><span className="probe-dot" /><b>拨测流</b><p>Worker → DNS → TCP → TLS → HTTP Endpoint；不经控制面转发。</p></div>
+              <div><span className="deny-dot" /><b>禁止路径</b><p>办公网直连生产、非生产 Probe 跨区访问生产、任意 URL 出网。</p></div>
+            </div>
+          </div>
+        </div>
+
         <div className="diagram-card">
-          <div className="diagram-title"><span>ARCHITECTURE</span><b>控制面、消息总线与执行面</b></div>
+          <div className="diagram-title"><span>DATA FLOW</span><b>控制面、消息总线与执行面</b></div>
           <div className="flow-diagram probe-flow">
             <Node title="Portal / API" meta="创建任务 · 校验权限" tone="accent" />
             <Arrow text="CRUD" />
