@@ -11,6 +11,7 @@
     "start": "vinext start",
     "export:static": "node scripts/export-static.mjs",
     "test": "npm run build && node --test tests/rendered-html.test.mjs",
+    "test:domain": "node --experimental-strip-types --test tests/demo-domain.test.mjs",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next"
   },
   "dependencies": {

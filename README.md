@@ -26,6 +26,14 @@ npm run dev
 
 本地页面默认运行在 `http://localhost:3000`。
 
+可交互拨测平台演示：
+
+```text
+http://localhost:3000/demo
+```
+
+演示版支持测试套 CRUD、发布/暂停、Token 掩码管理、模拟拨测、执行机排空和 1W TPS 自动扩缩容模拟。数据保存在浏览器本地，不会向填写的目标 URL 发起真实请求。
+
 ## Verification
 
 ```bash

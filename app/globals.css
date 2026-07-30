@@ -31,6 +31,7 @@ body {
 .hero-copy { min-width: 0; }
 a { color: inherit; }
 button { font: inherit; }
+.demo-link { padding:8px 13px; border-radius:18px; color:var(--green-dark); background:var(--lime); text-decoration:none; font-size:11px; font-weight:800; }
 
 .topbar {
   position: sticky;
@@ -293,7 +294,7 @@ footer div { display:flex; align-items:center; gap:10px; color:white; } footer .
   .implementation-grid { grid-template-columns:repeat(2,1fr); }.release-columns { grid-template-columns:repeat(2,1fr); }
 }
 @media (max-width: 720px) {
-  .topbar nav,.print-button { display:none; }.topbar { height:64px; }
+  .topbar nav,.print-button { display:none; }.topbar { height:64px; }.demo-link { margin-left:auto; }
   .hero { padding-top:70px; gap:40px; }.hero h1 { font-size:42px; overflow-wrap:anywhere; }.hero-note { grid-template-columns:1fr; }
   .section-shell { padding:82px 18px; }.section-heading { margin-bottom:36px; }.section-heading h2 { font-size:40px; }
   .principles,.scope-grid,.three-column,.two-column,.difficulty-list,.tool-grid,.before-after,.faq-grid,.answer-framework { grid-template-columns:1fr; }

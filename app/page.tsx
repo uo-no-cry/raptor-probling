@@ -122,6 +122,7 @@ export default function Home() {
         <nav aria-label="章节导航">
           {modules.map((item) => <a key={item.id} href={`#${item.id}`}>{item.index}</a>)}
         </nav>
+        <a className="demo-link" href="/demo">体验 Demo</a>
         <button className="print-button" onClick={() => window.print()}>打印 / 导出 PDF</button>
       </header>
 

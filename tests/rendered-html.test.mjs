@@ -1,17 +1,30 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-async function render() {
+async function render(path = "/") {
   const workerUrl = new URL("../dist/server/index.js", import.meta.url);
   workerUrl.searchParams.set("test", `${process.pid}-${Date.now()}`);
   const { default: worker } = await import(workerUrl.href);
 
   return worker.fetch(
-    new Request("http://localhost/", { headers: { accept: "text/html" } }),
+    new Request(`http://localhost${path}`, { headers: { accept: "text/html" } }),
     { ASSETS: { fetch: async () => new Response("Not found", { status: 404 }) } },
     { waitUntil() {}, passThroughOnException() {} },
   );
 }
+
+test("server-renders the interactive probe demo", async () => {
+  const response = await render("/demo");
+  assert.equal(response.status, 200);
+
+  const html = await response.text();
+  assert.match(html, /Raptor 拨测平台 Demo/);
+  assert.match(html, /运行总览/);
+  assert.match(html, /测试套/);
+  assert.match(html, /Token 管理/);
+  assert.match(html, /弹性模拟/);
+  assert.match(html, /安全模拟/);
+});
 
 test("server-renders the Raptor reference design", async () => {
   const response = await render();
