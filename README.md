@@ -1,0 +1,54 @@
+# Raptor Reference Design
+
+Raptor 运维平台的参考架构与仿真项目档案，覆盖：
+
+- HTTP/HTTPS 多环境拨测平台
+- 应用、环境与探测点网络连通性矩阵
+- 调度、Kafka、HTTP Worker、结果聚合、告警与弹性伸缩
+- Sumo Logic 日志查询 Claude Code Plugin
+- Jira Ticket 生成 Claude Code Plugin
+- Slack 通知中心重构
+- 从立项、需求、设计、开发、测试到发布运维的完整 SDLC 模板
+
+> 本项目用于系统设计学习和面试准备，不代表真实生产交付、上线记录或压测结果。
+
+## Requirements
+
+- Node.js `>=22.13.0`
+- npm
+
+## Development
+
+```bash
+npm install
+npm run dev
+```
+
+本地页面默认运行在 `http://localhost:3000`。
+
+## Verification
+
+```bash
+npm run build
+npm test
+npm run lint
+```
+
+## Static HTML
+
+仓库根目录包含可直接打开的：
+
+```text
+Raptor-参考架构设计.html
+```
+
+重新生成：
+
+```bash
+npm run build
+npm run export:static
+```
+
+## Important Scope
+
+拨测设计当前仅支持 HTTP/HTTPS。DNS 解析、TCP 建连和 TLS 握手只作为 HTTP 请求内部诊断阶段，不对外提供独立协议拨测。
