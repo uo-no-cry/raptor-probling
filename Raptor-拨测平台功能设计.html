@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="Raptor HTTP 拨测平台功能设计：测试套、Token、执行机与自动扩缩容">
+  <title>Raptor 拨测平台功能设计</title>
+  <style>
+    :root{--ink:#14231e;--green:#0f7b62;--dark:#073d31;--lime:#b6e86c;--orange:#e8783f;--purple:#7566a8;--paper:#f5f2e9;--card:#fffdf8;--line:#d7d3c8;--muted:#617069;--shadow:0 18px 60px rgba(12,41,31,.10)}
+    *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;color:var(--ink);background:var(--paper);font:14px/1.65 "Microsoft YaHei","PingFang SC",system-ui,sans-serif}
+    a{color:inherit}.topbar{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:22px;height:62px;padding:0 max(20px,calc((100vw - 1180px)/2));color:white;background:rgba(7,61,49,.96);backdrop-filter:blur(12px)}
+    .brand{font-weight:900;letter-spacing:.08em}.topbar nav{display:flex;gap:4px;margin-left:auto}.topbar nav a{padding:7px 10px;border-radius:16px;color:#c4d8d1;text-decoration:none;font-size:11px}.topbar nav a:hover{color:var(--dark);background:var(--lime)}
+    .print{padding:8px 13px;border:1px solid #5b8f80;border-radius:18px;color:white;background:transparent;cursor:pointer}.hero{padding:92px max(24px,calc((100vw - 1180px)/2));color:white;background:radial-gradient(circle at 85% 30%,#126f59 0,transparent 30%),var(--dark)}
+    .eyebrow{display:inline-block;color:var(--lime);font:800 10px ui-monospace,monospace;letter-spacing:.14em}.hero h1{max-width:850px;margin:14px 0;font-size:clamp(46px,7vw,86px);line-height:.98;letter-spacing:-.06em}.hero>p{max-width:820px;color:#c3d6d0;font-size:18px}
+    .hero-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;margin-top:44px;background:#356e5f;border:1px solid #356e5f}.hero-grid div{padding:20px;background:#0a4c3d}.hero-grid b{display:block;color:var(--lime);font:500 27px Georgia,serif}.hero-grid span{color:#b9d0c9;font-size:11px}
+    .notice{max-width:1180px;margin:24px auto 0;padding:15px 18px;border-left:4px solid var(--orange);color:#7c492c;background:#ffede2;font-size:12px}
+    main{max-width:1180px;margin:auto;padding:30px 24px 100px}.section{padding:76px 0;border-bottom:1px solid var(--line)}.section:last-child{border:0}.heading{max-width:840px;margin-bottom:34px}.heading h2{margin:10px 0 14px;font-size:clamp(34px,5vw,58px);line-height:1.08;letter-spacing:-.045em}.heading p{color:var(--muted);font-size:16px}
+    .label{color:var(--green);font:800 10px ui-monospace,monospace;letter-spacing:.14em}.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.card{padding:22px;border:1px solid var(--line);border-radius:12px;background:var(--card)}.card h3{margin:8px 0;font-size:16px}.card p,.card li{color:var(--muted);font-size:12px}.card ul{padding-left:18px}.number{color:var(--orange);font:700 11px ui-monospace,monospace}
+    .diagram{margin:28px 0;padding:25px;border:1px solid #b7cdc5;border-radius:16px;background:#edf6f2;box-shadow:var(--shadow)}.diagram-title{display:flex;justify-content:space-between;gap:20px;margin-bottom:22px}.diagram-title span{color:var(--green);font:800 10px ui-monospace,monospace;letter-spacing:.12em}.diagram-title b{font-size:14px}
+    .domain-flow{display:grid;grid-template-columns:1fr 50px 1fr 50px 1fr 50px 1fr;align-items:center}.node{padding:16px;border:1px solid var(--line);border-radius:9px;background:white}.node b{display:block}.node small{display:block;margin-top:5px;color:var(--muted);font:10px/1.5 ui-monospace,monospace}.node.primary{color:white;background:var(--green);border-color:var(--green)}.node.primary small{color:#c9e2da}.node.orange{background:#fff0e7;border-color:#eeb18f}.node.purple{background:#f1edfb;border-color:#b9addc}.arrow{text-align:center;color:var(--green);font-size:23px}
+    .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:18px}.panel{padding:24px;border:1px solid var(--line);background:var(--card)}.panel h3{margin-top:0}.panel p,.panel li{color:var(--muted);font-size:12px}.panel ul{padding-left:18px}
+    table{width:100%;border-collapse:collapse;background:var(--card);font-size:12px}th,td{padding:11px;border:1px solid var(--line);text-align:left;vertical-align:top}th{color:var(--dark);background:#e8f1ed}.table-wrap{overflow:auto;margin:18px 0}.table-wrap table{min-width:780px}.tag{display:inline-block;padding:3px 8px;border-radius:12px;color:var(--dark);background:#dff0e9;font:800 9px ui-monospace,monospace}.tag.warn{color:#85441f;background:#ffe5d5}.tag.gray{color:#606762;background:#e9e8e3}
+    .state-flow{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;align-items:center}.state{padding:13px 7px;border:1px solid #9ec4b7;border-radius:8px;background:white;text-align:center;font-size:11px}.state-arrow{text-align:center;color:var(--green);font-size:19px}.rule{margin:16px 0;padding:14px 17px;border-left:4px solid var(--green);color:var(--muted);background:#edf5f1;font-size:12px}.rule b{color:var(--ink)}
+    .screen{border:1px solid #bfc8c3;border-radius:12px;background:white;overflow:hidden}.screen-bar{display:flex;align-items:center;gap:8px;padding:11px 14px;color:white;background:var(--dark)}.screen-dot{width:7px;height:7px;border-radius:50%;background:var(--lime)}.screen-body{display:grid;grid-template-columns:170px 1fr;min-height:310px}.sidebar{padding:15px;background:#edf1ed}.sidebar b{display:block;margin-bottom:9px}.sidebar span{display:block;margin:5px 0;padding:7px 9px;border-radius:5px;color:var(--muted);font-size:10px}.sidebar span.active{color:white;background:var(--green)}.workspace{padding:18px}.toolbar{display:flex;gap:7px;margin-bottom:12px}.fake-input{flex:1;padding:8px;border:1px solid var(--line);color:#7c8782;font-size:10px}.fake-button{padding:8px 11px;color:white;background:var(--green);font-size:10px}.fake-row{display:grid;grid-template-columns:1.3fr .7fr .7fr .7fr;gap:8px;padding:10px 0;border-bottom:1px solid #ece9df;font-size:10px}.fake-row.head{font-weight:800}
+    .security-chain{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}.security-step{position:relative;padding:18px 13px;border:1px solid var(--line);border-radius:9px;background:white}.security-step span{display:block;color:var(--orange);font:800 10px ui-monospace,monospace}.security-step b{display:block;margin:6px 0}.security-step p{margin:0;color:var(--muted);font-size:10px}
+    .executor-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.executor{padding:18px;border:1px solid var(--line);border-radius:10px;background:white}.executor-head{display:flex;justify-content:space-between;gap:8px}.status{display:inline-block;padding:3px 7px;border-radius:10px;color:#17634f;background:#dff2e9;font:800 8px ui-monospace,monospace}.status.drain{color:#874723;background:#ffe8d9}.executor dl{display:grid;grid-template-columns:90px 1fr;margin:13px 0 0;font-size:10px}.executor dt{color:var(--muted)}.executor dd{margin:0;font-family:ui-monospace,monospace}
+    .scale-graph{display:grid;grid-template-columns:1fr 70px 1.2fr 70px 1fr;align-items:center}.metric-stack{display:grid;gap:7px}.metric{padding:10px;border:1px solid #b4c8c0;background:white;font:10px ui-monospace,monospace}.decision{padding:20px;color:white;border-radius:12px;background:var(--dark)}.decision code{display:block;margin-top:10px;color:var(--lime);font-size:11px}.pods{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}.pod{height:35px;border-radius:5px;background:var(--green)}.pod.warm{background:#81b8a8}.pod.pending{border:1px dashed var(--orange);background:#fff0e7}
+    .formula{margin:18px 0;padding:22px;color:white;background:var(--ink);font:15px/1.8 ui-monospace,monospace}.formula b{color:var(--lime)}.kpi{display:grid;grid-template-columns:repeat(5,1fr);gap:9px}.kpi div{padding:16px;border:1px solid var(--line);background:white}.kpi b{display:block;color:var(--green);font:500 24px Georgia,serif}.kpi span{color:var(--muted);font-size:10px}
+    .priority{counter-reset:item;list-style:none;padding:0}.priority li{display:grid;grid-template-columns:38px 1fr;gap:12px;padding:13px 0;border-bottom:1px solid var(--line)}.priority li:before{counter-increment:item;content:counter(item);display:grid;place-items:center;width:31px;height:31px;border-radius:50%;color:white;background:var(--green);font:700 10px ui-monospace,monospace}.priority b{display:block}.priority span{color:var(--muted);font-size:11px}
+    .acceptance{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.acceptance article{padding:20px;border-top:4px solid var(--green);background:white}.acceptance h3{margin:0 0 9px;font-size:14px}.acceptance p{color:var(--muted);font-size:11px}
+    pre{overflow:auto;padding:19px;color:#d7ebe4;background:#14231e;font:11px/1.7 ui-monospace,monospace}.footer{padding:35px;text-align:center;color:#a5b7b0;background:#071b15;font-size:11px}
+    @media(max-width:900px){.topbar nav{display:none}.cards,.kpi{grid-template-columns:repeat(2,1fr)}.domain-flow,.scale-graph{grid-template-columns:1fr;gap:8px}.arrow{transform:rotate(90deg)}.security-chain{grid-template-columns:repeat(2,1fr)}.state-flow{grid-template-columns:1fr}.state-arrow{transform:rotate(90deg)}}
+    @media(max-width:650px){.hero{padding-top:60px}.hero-grid,.cards,.grid-2,.executor-grid,.acceptance,.kpi,.security-chain{grid-template-columns:1fr}.topbar{padding:0 14px}.screen-body{grid-template-columns:1fr}.sidebar{display:none}.diagram{padding:17px}.print{margin-left:auto}.topbar .brand{font-size:11px}}
+    @media print{.topbar,.print{display:none!important}.hero{padding:35px;color:var(--ink);background:white}.hero>p{color:var(--muted)}.hero-grid div{color:var(--ink);background:white}.hero-grid b{color:var(--green)}.hero-grid span{color:var(--muted)}main{padding:0 20px}.section{padding:35px 0}.diagram,.panel,.card,.screen,.table-wrap{break-inside:avoid}.notice{margin:10px 20px}.footer{display:none}}
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">RAPTOR · FDD</div>
+    <nav aria-label="文档导航">
+      <a href="#overview">范围</a><a href="#suite">测试套</a><a href="#token">Token</a><a href="#executor">执行机</a><a href="#scaling">扩缩容</a><a href="#api">接口</a><a href="#acceptance">验收</a>
+    </nav>
+    <button class="print" type="button" onclick="window.print()">打印 / PDF</button>
+  </header>
+
+  <section class="hero">
+    <span class="eyebrow">FUNCTIONAL DESIGN DOCUMENT · v1.0</span>
+    <h1>Raptor HTTP<br>拨测平台功能设计</h1>
+    <p>围绕测试套 CRUD、拨测 Token 管理、执行机管理和自动扩缩容，形成从配置发布到 10,000 次 HTTP 探测请求/秒峰值执行的完整产品与技术闭环。</p>
+    <div class="hero-grid">
+      <div><b>HTTP Only</b><span>GET / HEAD / 受控 POST</span></div>
+      <div><b>10k TPS</b><span>探测请求峰值设计目标</span></div>
+      <div><b>128</b><span>Command / Result Topic 分区建议</span></div>
+      <div><b>36 Pods</b><span>按 400 req/s 安全吞吐预热</span></div>
+    </div>
+  </section>
+  <aside class="notice"><b>口径声明：</b>本文为参考功能设计，不是生产交付证明。“1W TPS”指平台执行面发起 HTTP 探测的峰值到达率；控制面 CRUD 不按 1W TPS 设计。生产宣称必须由指定机器规格、请求延迟分布和持续时长的压测报告支持。</aside>
+
+  <main>
+    <section class="section" id="overview">
+      <div class="heading">
+        <span class="label">01 · SCOPE & DOMAIN</span>
+        <h2>功能范围与领域模型</h2>
+        <p>测试套是用户管理的核心对象；Token 提供受控认证；执行机承载实际 HTTP 请求；调度器与 Kafka 将配置流量转换为可弹性消费的执行流量。</p>
+      </div>
+      <div class="cards">
+        <article class="card"><span class="number">01</span><h3>测试套管理</h3><p>管理同一应用、同一环境下的一组 HTTP 用例、调度策略、断言和探测点选择。</p></article>
+        <article class="card"><span class="number">02</span><h3>Token 管理</h3><p>维护测试套访问目标服务所需的认证凭据引用，支持轮换、吊销和审计。</p></article>
+        <article class="card"><span class="number">03</span><h3>执行机管理</h3><p>维护探测 Worker 的注册、心跳、标签、容量、排空和故障隔离状态。</p></article>
+        <article class="card"><span class="number">04</span><h3>自动扩缩容</h3><p>根据任务到达率、Kafka Lag、在途数和 CPU 扩缩 Worker，保护目标服务和结果链路。</p></article>
+      </div>
+      <div class="diagram">
+        <div class="diagram-title"><span>DOMAIN FLOW</span><b>配置发布到探测执行</b></div>
+        <div class="domain-flow">
+          <div class="node primary"><b>测试套版本</b><small>Suite + Cases + TokenRef + Schedule</small></div><div class="arrow">→</div>
+          <div class="node"><b>Scheduler</b><small>Jitter · Sharding · executionId</small></div><div class="arrow">→</div>
+          <div class="node orange"><b>Kafka</b><small>ProbeCommand · 128 partitions</small></div><div class="arrow">→</div>
+          <div class="node purple"><b>Executor Pool</b><small>HTTP Client · HPA/KEDA · Result</small></div>
+        </div>
+      </div>
+      <div class="grid-2">
+        <article class="panel"><h3>角色与权限</h3><ul><li><b>Viewer：</b>查看测试套、执行记录和执行机健康。</li><li><b>App Owner：</b>维护所属应用测试套，绑定已授权 Token。</li><li><b>SRE：</b>发布/暂停任务，管理执行机和容量策略。</li><li><b>Security Admin：</b>审批生产 Token、轮换与吊销。</li><li><b>Platform Admin：</b>平台配置和紧急停机，不可读取 Token 明文。</li></ul></article>
+        <article class="panel"><h3>边界与非目标</h3><ul><li>仅支持 HTTP/HTTPS，不提供独立 TCP、DNS、gRPC 拨测。</li><li>POST 仅允许已标记为无副作用的健康检查接口。</li><li>测试套不是压测脚本，不允许用户配置任意并发。</li><li>执行机不允许直接编辑 Pod IP；实例由 K8S 控制器管理。</li><li>Token 不在页面、日志、Kafka 消息和执行结果中回显。</li></ul></article>
+      </div>
+    </section>
+
+    <section class="section" id="suite">
+      <div class="heading">
+        <span class="label">02 · PROBE SUITE CRUD</span>
+        <h2>测试套 CRUD 功能设计</h2>
+        <p>“测试套”表示可独立发布和调度的一组 HTTP 测试用例。编辑始终发生在草稿版本，已发布版本不可变，保证历史结果可复现。</p>
+      </div>
+      <div class="screen" aria-label="测试套列表页面线框图">
+        <div class="screen-bar"><span class="screen-dot"></span><b>Raptor / 拨测平台 / 测试套</b></div>
+        <div class="screen-body">
+          <aside class="sidebar"><b>拨测平台</b><span class="active">测试套</span><span>Token 管理</span><span>执行机</span><span>执行记录</span><span>容量策略</span></aside>
+          <div class="workspace">
+            <div class="toolbar"><div class="fake-input">搜索名称 / 应用　　环境：全部　　状态：已发布</div><div class="fake-button">+ 新建测试套</div></div>
+            <div class="fake-row head"><span>测试套 / 应用</span><span>环境</span><span>状态 / 版本</span><span>操作</span></div>
+            <div class="fake-row"><span>payment-core-health<br>payment-service</span><span>PROD</span><span>已发布 · v12</span><span>查看　复制　暂停</span></div>
+            <div class="fake-row"><span>order-api-smoke<br>order-service</span><span>STG</span><span>草稿 · v4</span><span>编辑　发布　删除</span></div>
+            <div class="fake-row"><span>account-readiness<br>account-service</span><span>TEST</span><span>已暂停 · v8</span><span>查看　恢复　归档</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>功能</th><th>业务规则</th><th>权限与审计</th><th>结果</th></tr></thead>
+          <tbody>
+            <tr><td><b>Create 新建</b></td><td>选择 appId、environmentId；名称在应用环境内唯一；默认 DRAFT；至少新增 1 个 HTTP Case 才可发布。</td><td>App Owner；记录创建人和来源。</td><td>201 + suiteId + draftVersion=1</td></tr>
+            <tr><td><b>Read 查询</b></td><td>列表支持应用、环境、状态、标签过滤和游标分页；详情区分草稿与已发布版本。</td><td>Viewer；敏感 Header 仅显示 Token 引用。</td><td>200；列表默认 20，最大 100</td></tr>
+            <tr><td><b>Update 编辑</b></td><td>仅修改草稿；若当前只有发布版则复制生成下一草稿；使用 revision 做乐观锁。</td><td>App Owner；保存字段级 Diff。</td><td>200；冲突返回 409 REVISION_CONFLICT</td></tr>
+            <tr><td><b>Delete 删除</b></td><td>仅无执行历史的 DRAFT 可物理删除；其他状态只能 ARCHIVE；Token 引用计数同步释放。</td><td>App Owner；生产环境删除需二次确认。</td><td>204 或 409 SUITE_IN_USE</td></tr>
+            <tr><td><b>Publish 发布</b></td><td>校验网络矩阵、Case、Token、执行机标签和容量配额；生成不可变版本并创建调度计划。</td><td>PROD 需 SRE/Owner 双人审批。</td><td>202；异步返回 publishOperationId</td></tr>
+            <tr><td><b>Pause / Resume</b></td><td>暂停只阻止新命令，已在途请求允许完成；恢复前重做 Token 和网络准入校验。</td><td>SRE 或 App Owner；全量审计。</td><td>200 + effectiveAt</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <h3>测试套关键字段</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>分组</th><th>字段</th><th>校验规则</th></tr></thead>
+          <tbody>
+            <tr><td>基本信息</td><td>name、appId、environmentId、owner、tags</td><td>名称 2–80 字符；应用与环境必须来自 Raptor 元数据。</td></tr>
+            <tr><td>HTTP Case</td><td>method、baseUrl、path、headers、body、timeoutMs</td><td>仅 http/https；域名归属应用；GET/HEAD 默认允许，POST 需无副作用审批；超时 100–5000ms；响应体最大读取 64KB。</td></tr>
+            <tr><td>断言</td><td>statusCode、header、text、JSONPath、latency</td><td>最多 20 条；正则限制长度和执行时间，防 ReDoS。</td></tr>
+            <tr><td>调度</td><td>interval、jitter、probePoints、priority</td><td>最短周期 10s；jitter 默认 ±10%；生产至少 2 个探测点；优先级禁止由普通用户设为 EMERGENCY。</td></tr>
+            <tr><td>认证</td><td>tokenRef、injectLocation、headerName</td><td>只保存 tokenId/version；禁止保存明文；Header 名称使用白名单。</td></tr>
+            <tr><td>告警</td><td>failureWindow、consecutiveFailures、latencySlo</td><td>默认连续 3 次且 2 个点失败；网络阻断不计为应用失败。</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="diagram">
+        <div class="diagram-title"><span>STATE MACHINE</span><b>测试套生命周期</b></div>
+        <div class="state-flow">
+          <div class="state">DRAFT<br>草稿</div><div class="state-arrow">→</div><div class="state">VALIDATING<br>校验中</div><div class="state-arrow">→</div><div class="state">PUBLISHED<br>已发布</div><div class="state-arrow">⇄</div><div class="state">PAUSED<br>已暂停</div>
+        </div>
+        <div class="rule"><b>归档规则：</b>DRAFT、PUBLISHED、PAUSED 均可进入 ARCHIVED；PUBLISHED 归档前先停止调度。校验失败回到 DRAFT 并返回字段级错误，不产生半发布状态。</div>
+      </div>
+    </section>
+
+    <section class="section" id="token">
+      <div class="heading">
+        <span class="label">03 · PROBE TOKEN</span>
+        <h2>拨测 Token 管理</h2>
+        <p>Token 是目标应用认证凭据的逻辑句柄。平台控制面只保存元数据和密文引用，Worker 在执行时凭工作负载身份获取短期可用值。</p>
+      </div>
+      <div class="security-chain">
+        <article class="security-step"><span>01</span><b>创建</b><p>用户输入一次；HTTPS 传输；字段校验；不进入前端日志。</p></article>
+        <article class="security-step"><span>02</span><b>加密托管</b><p>Vault/KMS 信封加密；数据库只保存 secretRef 与版本。</p></article>
+        <article class="security-step"><span>03</span><b>绑定</b><p>限定 appId、environmentId、域名、Header 和有效期。</p></article>
+        <article class="security-step"><span>04</span><b>运行时获取</b><p>Worker ServiceAccount 换取短期授权，内存中注入。</p></article>
+        <article class="security-step"><span>05</span><b>销毁</b><p>请求结束清理引用；日志和 Result 统一脱敏。</p></article>
+      </div>
+      <div class="grid-2" style="margin-top:18px">
+        <article class="panel">
+          <h3>Token 字段与状态</h3>
+          <ul><li><b>字段：</b>tokenId、name、type、appId、environmentId、secretRef、version、expiresAt、lastUsedAt、owner。</li><li><b>类型：</b>Bearer、API Key、Basic（受控）；不支持用户脚本动态签名。</li><li><b>状态：</b>ACTIVE → ROTATING → ACTIVE；ACTIVE → REVOKED；过期自动 EXPIRED。</li><li><b>展示：</b>创建成功仅展示一次确认，不提供“查看明文”；列表显示掩码与后 4 位指纹。</li></ul>
+        </article>
+        <article class="panel">
+          <h3>轮换与吊销</h3>
+          <ul><li><b>轮换：</b>创建新 version，旧/新版本允许 5–30 分钟重叠；新任务使用新版本，旧在途请求完成后失效。</li><li><b>吊销：</b>立即禁止新获取，发布 TokenRevoked 事件；关联测试套标记 NEEDS_TOKEN。</li><li><b>过期：</b>提前 30/7/1 天通知；过期后任务不发送，避免制造 401 告警风暴。</li><li><b>审计：</b>记录创建、绑定、轮换、吊销和使用主体，不记录 Token 值。</li></ul>
+        </article>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>威胁</th><th>控制措施</th><th>验收证据</th></tr></thead>
+          <tbody>
+            <tr><td>明文泄漏</td><td>只写不读、KMS/Vault、TLS、日志脱敏、响应 Header/Body 截断。</td><td>代码扫描无 Token；日志注入测试无明文。</td></tr>
+            <tr><td>越权使用</td><td>Token 绑定应用+环境+域名；Worker 身份和 Topic ACL 双重校验。</td><td>跨应用、跨环境、跨域名均返回 403。</td></tr>
+            <tr><td>缓存残留</td><td>Worker 内存 TTL ≤ 5 分钟；不写磁盘；Pod 终止清理；禁用 Core Dump。</td><td>Pod 重启与内存检查无可恢复明文。</td></tr>
+            <tr><td>轮换中断</td><td>双版本重叠、灰度验证、失败自动回滚到旧版本（未吊销前）。</td><td>轮换演练期间成功率不低于基线。</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="section" id="executor">
+      <div class="heading">
+        <span class="label">04 · EXECUTOR MANAGEMENT</span>
+        <h2>执行机管理</h2>
+        <p>执行机以 K8S Worker Pod 为最小单元，以执行池为管理单元。平台展示和控制生命周期，但副本创建/删除由 Deployment、HPA/KEDA 完成。</p>
+      </div>
+      <div class="executor-grid">
+        <article class="executor"><div class="executor-head"><b>worker-prod-a-17</b><span class="status">ONLINE</span></div><dl><dt>Pool</dt><dd>prod-zone-a</dd><dt>Capacity</dt><dd>400 req/s</dd><dt>In-flight</dt><dd>318 / 800</dd><dt>Heartbeat</dt><dd>3s ago</dd></dl></article>
+        <article class="executor"><div class="executor-head"><b>worker-prod-b-09</b><span class="status drain">DRAINING</span></div><dl><dt>Pool</dt><dd>prod-zone-b</dd><dt>Capacity</dt><dd>400 req/s</dd><dt>In-flight</dt><dd>42 / 800</dd><dt>Deadline</dt><dd>87s</dd></dl></article>
+        <article class="executor"><div class="executor-head"><b>worker-np-a-22</b><span class="status">ONLINE</span></div><dl><dt>Pool</dt><dd>nonprod-a</dd><dt>Capacity</dt><dd>400 req/s</dd><dt>In-flight</dt><dd>175 / 800</dd><dt>Heartbeat</dt><dd>1s ago</dd></dl></article>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>功能</th><th>规则</th><th>异常处理</th></tr></thead>
+          <tbody>
+            <tr><td>自动注册</td><td>Pod 启动使用 ServiceAccount 注册 instanceId、pool、zone、version、capacity、capabilities；禁止自报环境越权。</td><td>身份或标签不匹配进入 QUARANTINED，不消费任务。</td></tr>
+            <tr><td>心跳与健康</td><td>每 5s 上报 inFlight、成功率、P99、CPU、内存、连接池；连续 3 次丢失转 OFFLINE。</td><td>停止分配；Kafka 未确认消息由其他消费者重取。</td></tr>
+            <tr><td>排空 Drain</td><td>先停止拉取新消息，等待在途完成；默认 120s，超时取消请求并返回 EXECUTOR_DRAINED。</td><td>发布升级、缩容和故障实例均走同一排空流程。</td></tr>
+            <tr><td>隔离 Cordon</td><td>SRE 可人工隔离异常实例或版本；支持按镜像版本批量隔离。</td><td>隔离动作记录原因、操作者和恢复条件。</td></tr>
+            <tr><td>执行池管理</td><td>按 PROD/NON_PROD、网络区、协议能力分池；配置 min/max replicas、单 Pod 吞吐和目标服务配额。</td><td>无匹配池时任务进入 UNSCHEDULABLE，不跨环境兜底。</td></tr>
+            <tr><td>版本灰度</td><td>新版本先 5% 实例，比较错误率/P99/资源；逐步 25%→50%→100%。</td><td>指标超阈值自动隔离新版本并回滚。</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="rule"><b>状态机：</b>STARTING → ONLINE → DRAINING → OFFLINE；任何状态可因身份、配置或行为异常进入 QUARANTINED。只有 ONLINE 实例加入 Consumer Group，DRAINING 只提交已领取任务的结果。</div>
+    </section>
+
+    <section class="section" id="scaling">
+      <div class="heading">
+        <span class="label">05 · AUTOSCALING & 10K TPS</span>
+        <h2>自动扩缩容与 1W TPS 设计</h2>
+        <p>扩缩容不能只看 CPU。HTTP Worker 是 I/O 密集型，核心信号应是任务到达率、Kafka Lag、最老消息年龄和在途请求数，CPU/内存作为安全补充。</p>
+      </div>
+      <div class="diagram">
+        <div class="diagram-title"><span>SCALING LOOP</span><b>KEDA / HPA 多指标决策</b></div>
+        <div class="scale-graph">
+          <div class="metric-stack">
+            <div class="metric">arrival_rate = 10,000 msg/s</div><div class="metric">kafka_lag / oldest_age</div><div class="metric">in_flight / pod</div><div class="metric">CPU / memory / error_rate</div>
+          </div>
+          <div class="arrow">→</div>
+          <div class="decision"><b>Desired Replicas</b><code>max(ceil(rate / 400),<br>ceil(lag / 2,000),<br>ceil(inFlight / 800)) × 1.3</code></div>
+          <div class="arrow">→</div>
+          <div class="pods" aria-label="Worker Pods"><i class="pod"></i><i class="pod"></i><i class="pod"></i><i class="pod"></i><i class="pod"></i><i class="pod"></i><i class="pod"></i><i class="pod"></i><i class="pod warm"></i><i class="pod warm"></i><i class="pod warm"></i><i class="pod pending"></i></div>
+        </div>
+      </div>
+      <div class="formula">
+        <b>基础副本：</b>10,000 req/s ÷ 400 req/s/Pod = 25 Pods<br>
+        <b>冗余副本：</b>ceil(25 × 1.30) = 33 Pods；峰值前预热 36 Pods<br>
+        <b>在途请求：</b>10,000 × 0.2s 平均时延 = 2,000；3s 超时上界 = 30,000<br>
+        <b>单 Pod 上界：</b>800 in-flight；36 Pods 总上界 28,800，超出时队列等待而非无限建连
+      </div>
+      <div class="kpi">
+        <div><b>36</b><span>峰值预热副本</span></div><div><b>8</b><span>低谷最小热池</span></div><div><b>80</b><span>单执行池最大副本</span></div><div><b>128</b><span>Kafka 分区 / 最大并行消费者基础</span></div><div><b>60s</b><span>积压恢复目标</span></div>
+      </div>
+      <div class="grid-2" style="margin-top:18px">
+        <article class="panel">
+          <h3>扩容策略</h3>
+          <ul><li>每 5–10s 计算一次；到达率预测优先于 CPU。</li><li>副本增长允许 100%/15s，发现 oldest message age &gt; 5s 立即快扩。</li><li>整点任务提前 2 分钟 scheduled scaling，避免冷启动追赶。</li><li>保留 8 Pod 热池；镜像预拉取、连接池预热、readiness 通过后才消费。</li><li>最大 80 Pod 不是越大越好，必须受目标服务、NAT、DNS、Kafka 和数据库容量约束。</li></ul>
+        </article>
+        <article class="panel">
+          <h3>缩容策略</h3>
+          <ul><li>连续 10 分钟 lag=0、inFlight&lt;30%、CPU&lt;40% 才允许缩容。</li><li>每 60s 最多缩 10%，避免流量波动导致抖动。</li><li>缩容前将实例置为 DRAINING；在途归零或达到 120s 截止时间后退出。</li><li>生产池永不缩到 0；分区拓扑需保证多可用区最小副本。</li><li>缩容期间错误率上升或 lag 恢复，立即取消缩容。</li></ul>
+        </article>
+      </div>
+      <h3>端到端容量保护</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>层级</th><th>设计</th><th>1W TPS 下的保护</th></tr></thead>
+          <tbody>
+            <tr><td>Scheduler</td><td>ElasticJob 分片；确定性 jitter；只生成轻量命令，不同步执行 HTTP。</td><td>水平分片；批量读取配置；任务发布幂等。</td></tr>
+            <tr><td>Kafka</td><td>Command/Result 各 128 分区；按 environment+probePoint+targetHash 分区。</td><td>削峰、背压、至少一次投递；单热点目标不会压垮全局。</td></tr>
+            <tr><td>Worker</td><td>异步 HTTP Client、Keep-Alive、DNS 缓存、连接池、800 in-flight/Pod。</td><td>全局/租户/目标三级令牌桶；目标并发上限优先。</td></tr>
+            <tr><td>Result</td><td>executionId 唯一；200–500 条或 100ms 微批写入；摘要与明细分离。</td><td>避免 10k 单行事务/秒直接冲击 MySQL；Result Topic 可重放。</td></tr>
+            <tr><td>MySQL</td><td>配置库与结果库隔离；执行表按日分区；短期明细 TTL；索引只覆盖常用查询。</td><td>控制面不受结果洪峰影响；持续 10k/s 明细应迁移到列式/时序存储。</td></tr>
+            <tr><td>目标服务</td><td>每 app/env/host 单独配置 QPS 与并发预算。</td><td>全平台有能力发出 10k/s，不代表允许对单一服务发出 10k/s。</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <h3>过载降级顺序</h3>
+      <ol class="priority">
+        <li><div><b>丢弃过期低优先级命令</b><span>超过 deadline 的任务不补发陈旧流量，结果标记 EXPIRED。</span></div></li>
+        <li><div><b>降低非生产与低优先级频率</b><span>PROD 核心探测优先，DEV/TEST 周期临时放大 2–5 倍。</span></div></li>
+        <li><div><b>关闭响应体断言和非必要采样</b><span>保留状态码与时延，减少 CPU、内存和结果体积。</span></div></li>
+        <li><div><b>目标级熔断</b><span>目标服务持续 429/503 或连接耗尽时停止加压，转为低频恢复探测。</span></div></li>
+        <li><div><b>全局保护</b><span>Lag 持续恶化且达到 max replicas 时拒绝手动/临时任务，返回 503 + Retry-After。</span></div></li>
+      </ol>
+    </section>
+
+    <section class="section" id="api">
+      <div class="heading">
+        <span class="label">06 · API & DATA</span>
+        <h2>接口与数据设计</h2>
+        <p>所有写接口要求 SSO、RBAC、CSRF/服务身份校验、幂等键和审计。列表使用游标分页；错误使用稳定错误码，不暴露内部堆栈。</p>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Method / Path</th><th>用途</th><th>关键语义</th></tr></thead>
+          <tbody>
+            <tr><td>POST /api/v1/probe-suites</td><td>新建测试套草稿</td><td>201 + Location；Idempotency-Key 防重复。</td></tr>
+            <tr><td>GET /api/v1/probe-suites</td><td>筛选/分页</td><td>cursor、limit≤100、appId、environmentId、status。</td></tr>
+            <tr><td>GET /api/v1/probe-suites/{id}</td><td>查看详情</td><td>默认返回发布版与当前草稿摘要。</td></tr>
+            <tr><td>PATCH /api/v1/probe-suites/{id}</td><td>编辑草稿</td><td>If-Match: revision；冲突 409。</td></tr>
+            <tr><td>DELETE /api/v1/probe-suites/{id}</td><td>删除草稿</td><td>有历史则 409，改用 archive。</td></tr>
+            <tr><td>POST /api/v1/probe-suites/{id}/publish</td><td>发布</td><td>202；完整准入校验；异步 Operation。</td></tr>
+            <tr><td>POST /api/v1/probe-tokens</td><td>创建 Token</td><td>201；secret 只接收一次，响应不回显。</td></tr>
+            <tr><td>POST /api/v1/probe-tokens/{id}/rotate</td><td>轮换</td><td>202；新旧版本重叠窗口。</td></tr>
+            <tr><td>POST /api/v1/probe-tokens/{id}/revoke</td><td>吊销</td><td>200；立即阻止新获取；通知关联测试套。</td></tr>
+            <tr><td>GET /api/v1/executor-pools</td><td>执行池及容量</td><td>聚合副本、吞吐、lag、inFlight、版本。</td></tr>
+            <tr><td>POST /api/v1/executors/{id}/drain</td><td>排空执行机</td><td>202；返回 Operation；支持 deadline。</td></tr>
+            <tr><td>PUT /api/v1/executor-pools/{id}/scaling-policy</td><td>更新扩缩容策略</td><td>全量替换；验证 min≤max 和下游预算。</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <pre>{
+  "error": {
+    "code": "TOKEN_SCOPE_MISMATCH",
+    "message": "所选 Token 不允许用于当前应用和环境",
+    "requestId": "req_01J...",
+    "details": [{"field": "tokenId", "code": "scope_mismatch"}]
+  }
+}</pre>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>表</th><th>关键字段</th><th>约束 / 索引</th></tr></thead>
+          <tbody>
+            <tr><td>probe_suite</td><td>id, app_id, environment_id, name, status, published_version</td><td>(app_id, environment_id, name) 唯一；status+updated_at 索引。</td></tr>
+            <tr><td>probe_suite_version</td><td>suite_id, version, config_json, revision, created_by</td><td>(suite_id, version) 唯一；发布后不可变。</td></tr>
+            <tr><td>probe_case</td><td>version_id, method, url, timeout_ms, assertions_json, token_id</td><td>version_id+sort_order；URL 发布前二次校验。</td></tr>
+            <tr><td>probe_token</td><td>id, app_id, environment_id, secret_ref, version, status, expires_at</td><td>不含明文；app+env+status 索引。</td></tr>
+            <tr><td>executor_instance</td><td>instance_id, pool_id, zone, state, capacity, heartbeat_at, image_version</td><td>heartbeat_at、pool_id+state 索引；实例短生命周期。</td></tr>
+            <tr><td>executor_pool</td><td>id, environment_class, min_replicas, max_replicas, safe_tps, policy_json</td><td>生产/非生产池分离；策略变更版本化。</td></tr>
+            <tr><td>probe_execution</td><td>execution_id, suite_version, case_id, executor_id, status, latency_ms</td><td>execution_id 唯一；按日分区和 TTL。</td></tr>
+            <tr><td>audit_log</td><td>actor, action, resource, before_hash, after_hash, request_id</td><td>仅追加；按 resource+created_at 查询。</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="section" id="acceptance">
+      <div class="heading">
+        <span class="label">07 · ACCEPTANCE</span>
+        <h2>验收标准与压测方案</h2>
+        <p>“支持 1W TPS”必须转化为可重复的验收场景，覆盖稳定吞吐、突发、扩容、故障恢复和目标保护，而不是只看某一秒的峰值数字。</p>
+      </div>
+      <div class="acceptance">
+        <article><h3>功能验收</h3><p>测试套 CRUD、版本发布、暂停恢复、Token 轮换吊销、执行机注册排空、容量策略修改均满足权限、幂等、状态机与审计要求。</p></article>
+        <article><h3>稳态容量</h3><p>在约定机器规格、平均响应 200ms 下持续 10,000 req/s 30 分钟；成功率 ≥99.9%，调度到结果 P99≤10s，Kafka oldest age≤5s。</p></article>
+        <article><h3>突发与扩容</h3><p>2,000→10,000 req/s 在 60s 内完成扩容并清空积压；无扩容抖动、无超最大副本、无目标级配额突破。</p></article>
+        <article><h3>故障恢复</h3><p>随机终止 30% Worker、单 AZ 故障、Kafka Consumer 重平衡时无结果丢失；重复结果由 executionId 幂等吸收。</p></article>
+        <article><h3>安全验收</h3><p>Token 不出现在页面响应、Kafka、日志和结果中；跨应用/环境使用被拒绝；SSRF、DNS 重绑定、保留地址访问均被阻断。</p></article>
+        <article><h3>过载保护</h3><p>目标服务返回 429/503、数据库变慢或达到 80 Pod 时，系统按优先级降级并拒绝临时流量，不拖垮控制面。</p></article>
+      </div>
+      <div class="rule"><b>压测报告必填：</b>Worker CPU/内存规格、Pod 数、Kafka 分区与 Broker、目标服务 Stub 延迟分布、连接复用率、持续时长、成功率、P50/P95/P99、Lag、最老消息年龄、结果入库延迟、错误分类和瓶颈结论。</div>
+    </section>
+  </main>
+  <footer class="footer">Raptor HTTP Synthetic Monitoring · Functional Design Reference · 仅用于设计演练与面试准备</footer>
+</body>
+</html>
