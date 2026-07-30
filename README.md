@@ -40,7 +40,11 @@ npm run lint
 
 ```text
 Raptor-参考架构设计.html
+Raptor-拨测平台架构设计.html
 ```
+
+- `Raptor-参考架构设计.html`：包含拨测、日志查询插件、Jira 插件和 Slack 通知重构的总文档。
+- `Raptor-拨测平台架构设计.html`：从总文档自动拆分生成的拨测平台独立设计文档，包含应用架构、网络架构及完整 SDLC 档案。
 
 重新生成：
 
